@@ -51,7 +51,10 @@
   # O de un equipo específico
   python3 main.py extract-players --league-id 39 --season 2018 --team-id 33
 
-python main.py extract-fixtures --league-id 39 --season 2025
+# Extraer partidos de una liga por temporada
+  python main.py extract-fixtures --league-id 39 --season 2025
+
+
 
 # Consultar todas las ligas agrupadas por país
   python main.py query leagues
@@ -67,3 +70,15 @@ python main.py extract-fixtures --league-id 39 --season 2025
 
   # Detalles de una liga específica
   python main.py query leagues --external-id "39"
+
+# Iniciar dashboard básico
+  python main.py web-dashboard
+
+  # Con navegador automático
+  python main.py web-dashboard --auto-open
+
+  # Modo desarrollo  
+  python main.py web-dashboard --debug --auto-open
+
+  # Puerto personalizado
+  python main.py web-dashboard --port 8080

@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Pronossport{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="display-4 mb-4">
+            <i class="bi bi-graph-up text-primary"></i> Dashboard Pronossport
+        </h1>
+        <p class="lead text-muted">
+            Visualización y análisis de datos deportivos - Base de datos raw_pronossport
+        </p>
+    </div>
+</div>
+
+{% if stats %}
+<!-- Cards de estadísticas principales -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.totals.leagues }}</h4>
+                        <p class="card-text">Ligas</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-trophy fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-2">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.totals.countries }}</h4>
+                        <p class="card-text">Países</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-globe fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-2">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.totals.teams }}</h4>
+                        <p class="card-text">Equipos</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-shield fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-2">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.totals.players }}</h4>
+                        <p class="card-text">Jugadores</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-person fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-2">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.totals.matches }}</h4>
+                        <p class="card-text">Partidos</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-calendar-event fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-2">
+        <div class="card bg-secondary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.totals.seasons }}</h4>
+                        <p class="card-text">Temporadas</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-calendar3 fs-1"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos y tablas -->
+<div class="row">
+    <!-- Países con más ligas -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-bar-chart"></i> Top 5 - Países con más ligas
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if stats.top_countries %}
+                <canvas id="countriesChart" width="400" height="200"></canvas>
+                {% else %}
+                <p class="text-muted">No hay datos disponibles</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ligas con más equipos -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-pie-chart"></i> Top 5 - Ligas con más equipos
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if stats.top_leagues %}
+                <canvas id="leaguesChart" width="400" height="200"></canvas>
+                {% else %}
+                <p class="text-muted">No hay datos disponibles</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enlaces rápidos -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-lightning"></i> Accesos Rápidos
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2">
+                        <a href="{{ url_for('leagues') }}" class="btn btn-outline-primary btn-lg w-100 mb-2">
+                            <i class="bi bi-trophy"></i><br>
+                            <small>Ver ligas</small>
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('teams') }}" class="btn btn-outline-success btn-lg w-100 mb-2">
+                            <i class="bi bi-shield"></i><br>
+                            <small>Explorar equipos</small>
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('players') }}" class="btn btn-outline-info btn-lg w-100 mb-2">
+                            <i class="bi bi-person"></i><br>
+                            <small>Buscar jugadores</small>
+                        </a>
+                    </div>
+                    <div class="col-md-2">
+                        <a href="{{ url_for('matches') }}" class="btn btn-outline-warning btn-lg w-100 mb-2">
+                            <i class="bi bi-calendar-event"></i><br>
+                            <small>Ver partidos</small>
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{{ url_for('administration') }}" class="btn btn-outline-danger btn-lg w-100 mb-2">
+                            <i class="bi bi-gear"></i><br>
+                            <small>Administración de datos</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- Estado sin datos -->
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <h4 class="alert-heading">
+                <i class="bi bi-info-circle"></i> Base de datos vacía
+            </h4>
+            <p>
+                No se encontraron datos en la base de datos raw_pronossport. 
+                Asegúrate de haber ejecutado el proceso de extracción de datos.
+            </p>
+            <hr>
+            <p class="mb-0">
+                <strong>Comandos útiles:</strong>
+                <code>python main.py extract --endpoint leagues</code> |
+                <code>python main.py extract --endpoint teams</code>
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+{% if stats %}
+<script>
+// Gráfico de países
+const countriesCtx = document.getElementById('countriesChart').getContext('2d');
+new Chart(countriesCtx, {
+    type: 'bar',
+    data: {
+        labels: [
+            {% for country in stats.top_countries %}
+            '{{ country.country }}'{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            label: 'Número de ligas',
+            data: [
+                {% for country in stats.top_countries %}
+                {{ country.leagues }}{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Gráfico de ligas
+const leaguesCtx = document.getElementById('leaguesChart').getContext('2d');
+new Chart(leaguesCtx, {
+    type: 'doughnut',
+    data: {
+        labels: [
+            {% for league in stats.top_leagues %}
+            '{{ league.name }} ({{ league.country }})'{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ],
+        datasets: [{
+            data: [
+                {% for league in stats.top_leagues %}
+                {{ league.teams }}{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ],
+            backgroundColor: [
+                'rgba(255, 99, 132, 0.6)',
+                'rgba(54, 162, 235, 0.6)',
+                'rgba(255, 205, 86, 0.6)',
+                'rgba(75, 192, 192, 0.6)',
+                'rgba(153, 102, 255, 0.6)'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

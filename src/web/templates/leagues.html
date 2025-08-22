@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Ligas - Pronossport{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="display-5 mb-4">
+            <i class="bi bi-trophy text-primary"></i> Ligas
+        </h1>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-funnel"></i> Filtros
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="season" class="form-label">Temporada</label>
+                        <select class="form-select" id="season" name="season">
+                            <option value="">Todas las temporadas</option>
+                            {% if seasons %}
+                                {% for season in seasons %}
+                                <option value="{{ season }}" {% if current_season == season %}selected{% endif %}>
+                                    {{ season }}
+                                </option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="country" class="form-label">País</label>
+                        <select class="form-select" id="country" name="country">
+                            <option value="">Todos los países</option>
+                            {% if countries %}
+                                {% for country in countries %}
+                                <option value="{{ country }}" {% if current_country == country %}selected{% endif %}>
+                                    {{ country }}
+                                </option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Filtrar
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resultados -->
+{% if leagues %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-list"></i> Ligas encontradas ({{ leagues|length }})
+                </h5>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleView('table')">
+                        <i class="bi bi-table"></i> Tabla
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleView('cards')">
+                        <i class="bi bi-grid"></i> Tarjetas
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Vista de tabla -->
+                <div id="tableView">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Liga</th>
+                                    <th>País</th>
+                                    <th>Temporada</th>
+                                    <th>Inicio</th>
+                                    <th>Fin</th>
+                                    <th>ID Externo</th>
+                                    <th>Registros</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for league in leagues %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if league.logo_url %}
+                                            <img src="{{ league.logo_url }}" alt="Logo" class="me-2" style="width: 24px; height: 24px; object-fit: contain;">
+                                            {% endif %}
+                                            <strong>{{ league.league_name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if league.flag_url %}
+                                            <img src="{{ league.flag_url }}" alt="Bandera" class="me-2" style="width: 24px; height: 16px; object-fit: cover;">
+                                            {% endif %}
+                                            {{ league.country }}
+                                            {% if league.country_code %}
+                                            <small class="text-muted ms-1">({{ league.country_code }})</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ league.season or 'N/A' }}</span>
+                                    </td>
+                                    <td>{{ league.season_start | format_date }}</td>
+                                    <td>{{ league.season_end | format_date }}</td>
+                                    <td>
+                                        <code>{{ league.external_id }}</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ league.total_records }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ url_for('teams', league_id=league.external_id, season=league.season) }}" 
+                                               class="btn btn-outline-primary btn-sm" title="Ver equipos">
+                                                <i class="bi bi-shield"></i>
+                                            </a>
+                                            <a href="{{ url_for('matches', league_id=league.external_id, season=league.season) }}" 
+                                               class="btn btn-outline-success btn-sm" title="Ver partidos">
+                                                <i class="bi bi-calendar-event"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Vista de tarjetas -->
+                <div id="cardsView" style="display: none;">
+                    <div class="row">
+                        {% for league in leagues %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-start mb-3">
+                                        {% if league.logo_url %}
+                                        <img src="{{ league.logo_url }}" alt="Logo" class="me-3" style="width: 40px; height: 40px; object-fit: contain;">
+                                        {% endif %}
+                                        <div class="flex-grow-1">
+                                            <h6 class="card-title mb-1">{{ league.league_name }}</h6>
+                                            <div class="d-flex align-items-center text-muted">
+                                                {% if league.flag_url %}
+                                                <img src="{{ league.flag_url }}" alt="Bandera" class="me-1" style="width: 20px; height: 14px; object-fit: cover;">
+                                                {% endif %}
+                                                <small>{{ league.country }}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <span class="badge bg-primary">{{ league.season or 'N/A' }}</span>
+                                        <span class="badge bg-info ms-1">{{ league.total_records }} registros</span>
+                                    </div>
+                                    
+                                    <div class="small text-muted mb-3">
+                                        <div>Inicio: {{ league.season_start | format_date }}</div>
+                                        <div>Fin: {{ league.season_end | format_date }}</div>
+                                        <div>ID: <code>{{ league.external_id }}</code></div>
+                                    </div>
+                                    
+                                    <div class="btn-group w-100" role="group">
+                                        <a href="{{ url_for('teams', league_id=league.external_id, season=league.season) }}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-shield"></i> Equipos
+                                        </a>
+                                        <a href="{{ url_for('matches', league_id=league.external_id, season=league.season) }}" 
+                                           class="btn btn-outline-success btn-sm">
+                                            <i class="bi bi-calendar-event"></i> Partidos
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <h4 class="alert-heading">
+                <i class="bi bi-info-circle"></i> No se encontraron ligas
+            </h4>
+            <p>
+                No hay ligas que coincidan con los filtros seleccionados o no hay datos en la base de datos.
+            </p>
+            <hr>
+            <p class="mb-0">
+                <strong>Sugerencias:</strong>
+                <ul class="mb-0">
+                    <li>Intenta cambiar o quitar los filtros</li>
+                    <li>Ejecuta: <code>python main.py extract --endpoint leagues</code></li>
+                </ul>
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleView(viewType) {
+    const tableView = document.getElementById('tableView');
+    const cardsView = document.getElementById('cardsView');
+    
+    if (viewType === 'table') {
+        tableView.style.display = 'block';
+        cardsView.style.display = 'none';
+    } else {
+        tableView.style.display = 'none';
+        cardsView.style.display = 'block';
+    }
+}
+</script>
+{% endblock %}

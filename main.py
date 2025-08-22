@@ -547,5 +547,91 @@ def query_leagues(season, country, summary, external_id):
     except Exception as e:
         logger.error(f"❌ Error consultando ligas: {e}")
 
+@cli.command()
+@click.option('--host', default='0.0.0.0', help='Host para el servidor web (default: 0.0.0.0)')
+@click.option('--port', default=5000, type=int, help='Puerto para el servidor web (default: 5000)')
+@click.option('--debug', is_flag=True, help='Ejecutar en modo debug')
+@click.option('--auto-open', is_flag=True, help='Abrir navegador automáticamente')
+def web_dashboard(host, port, debug, auto_open):
+    """Iniciar interfaz web del dashboard"""
+    logger.info("🌐 Iniciando dashboard web de Pronossport...")
+    
+    try:
+        # Verificar conexiones antes de iniciar el servidor
+        logger.info("🔌 Verificando conexiones a base de datos...")
+        raw_ok = raw_db_manager.test_connection()
+        pronos_ok = pronos_db_manager.test_connection()
+        
+        if not raw_ok:
+            logger.error("❌ Error conectando a raw_pronossport")
+            logger.info("💡 Asegúrate de que la base de datos esté configurada correctamente")
+            return
+        
+        if not pronos_ok:
+            logger.warning("⚠️  Error conectando a pronossport (opcional)")
+        
+        logger.info("✅ Conexión a base de datos verificada")
+        
+        # Importar y crear la app
+        from src.web.app import create_app
+        app = create_app()
+        
+        # Configurar logging según el modo
+        if not debug:
+            import logging
+            log = logging.getLogger('werkzeug')
+            log.setLevel(logging.ERROR)
+        
+        # URL del dashboard
+        dashboard_url = f"http://{host if host != '0.0.0.0' else 'localhost'}:{port}"
+        
+        logger.info(f"🚀 Dashboard disponible en: {dashboard_url}")
+        logger.info("📊 Características disponibles:")
+        logger.info("   • Visualización de ligas por país")
+        logger.info("   • Exploración de equipos y jugadores")
+        logger.info("   • Consulta de partidos y estadísticas")
+        logger.info("   • Filtros avanzados y búsqueda")
+        logger.info("   • Vistas de tabla y tarjetas")
+        logger.info("")
+        logger.info("⌨️  Comandos útiles:")
+        logger.info("   • Ctrl+C: Detener servidor")
+        logger.info("   • Ctrl+R: Refrescar datos")
+        logger.info("")
+        
+        # Abrir navegador automáticamente si se solicita
+        if auto_open:
+            import webbrowser
+            import threading
+            
+            def open_browser():
+                import time
+                time.sleep(1.5)  # Esperar a que el servidor esté listo
+                try:
+                    webbrowser.open(dashboard_url)
+                    logger.info(f"🌐 Navegador abierto en {dashboard_url}")
+                except Exception as e:
+                    logger.warning(f"No se pudo abrir el navegador automáticamente: {e}")
+            
+            threading.Thread(target=open_browser, daemon=True).start()
+        
+        # Iniciar servidor
+        app.run(
+            host=host,
+            port=port,
+            debug=debug,
+            use_reloader=debug,
+            threaded=True
+        )
+        
+    except KeyboardInterrupt:
+        logger.info("\n👋 Dashboard detenido por el usuario")
+    except ImportError as e:
+        logger.error(f"❌ Error importando módulos del dashboard: {e}")
+        logger.info("💡 Instala las dependencias: pip install -r requirements.txt")
+    except Exception as e:
+        logger.error(f"❌ Error iniciando dashboard: {e}")
+        if debug:
+            raise
+
 if __name__ == '__main__':
     cli()
