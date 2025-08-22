@@ -5,6 +5,7 @@ from src.utils.logger import logger
 from src.database.connection import raw_db_manager, pronos_db_manager
 from src.services.extraction_service import ExtractionService
 from src.services.transformation_service import TransformationService
+from src.services.query_service import RawQueryService
 from src.models.raw_models import RawBase
 from src.models.pronos_models import PronosBase
 
@@ -432,6 +433,119 @@ def status():
         
     except Exception as e:
         logger.error(f"Error obteniendo estado: {e}")
+
+@cli.group()
+def query():
+    """Consultas a la base de datos raw_pronossport"""
+    pass
+
+@query.command('leagues')
+@click.option('--season', help='Filtrar por temporada (ej: 2024)')
+@click.option('--country', help='Filtrar por país específico')
+@click.option('--summary', is_flag=True, help='Mostrar solo resumen por país')
+@click.option('--external-id', help='Obtener detalles de una liga específica por external_id')
+def query_leagues(season, country, summary, external_id):
+    """Consultar ligas agrupadas por país y liga"""
+    logger.info("🔍 Consultando ligas de la base de datos...")
+    
+    try:
+        query_service = RawQueryService()
+        
+        if external_id:
+            # Consultar detalles de una liga específica
+            league_details = query_service.get_league_details(external_id)
+            if league_details:
+                logger.info(f"📋 Detalles de la liga {external_id}:")
+                logger.info(f"  Nombre: {league_details['name']}")
+                logger.info(f"  País: {league_details['country']} ({league_details['country_code']})")
+                logger.info(f"  Temporada: {league_details['season']}")
+                logger.info(f"  Inicio: {league_details['season_start']}")
+                logger.info(f"  Fin: {league_details['season_end']}")
+                logger.info(f"  API Source: {league_details['api_source']}")
+                if league_details['logo_url']:
+                    logger.info(f"  Logo: {league_details['logo_url']}")
+            else:
+                logger.warning(f"❌ No se encontró liga con external_id: {external_id}")
+            return
+        
+        if summary:
+            # Mostrar resumen por país
+            summary_data = query_service.get_leagues_summary_by_country(season)
+            
+            if summary_data:
+                logger.info(f"📊 Resumen de ligas por país:")
+                if season:
+                    logger.info(f"📅 Temporada filtrada: {season}")
+                
+                total_countries = len(summary_data)
+                total_leagues = sum(item['total_leagues'] for item in summary_data)
+                total_records = sum(item['total_records'] for item in summary_data)
+                
+                logger.info(f"🌍 Total países: {total_countries}")
+                logger.info(f"🏆 Total ligas únicas: {total_leagues}")
+                logger.info(f"📝 Total registros: {total_records}")
+                logger.info("---")
+                
+                for item in summary_data:
+                    logger.info(f"🌍 {item['country']} ({item['country_code']}): {item['total_leagues']} ligas, {item['total_records']} registros")
+            else:
+                logger.warning("❌ No se encontraron datos de ligas")
+                
+        elif country:
+            # Mostrar ligas de un país específico
+            leagues_data = query_service.get_leagues_by_country(country, season)
+            
+            if leagues_data:
+                logger.info(f"🏆 Ligas de {country}:")
+                if season:
+                    logger.info(f"📅 Temporada filtrada: {season}")
+                
+                for league in leagues_data:
+                    logger.info(f"  • {league['name']} (ID: {league['external_id']}) - Temporada: {league['season']}")
+                    
+                logger.info(f"📊 Total: {len(leagues_data)} ligas encontradas")
+            else:
+                logger.warning(f"❌ No se encontraron ligas para {country}")
+                
+        else:
+            # Mostrar todas las ligas agrupadas
+            leagues_data = query_service.get_leagues_by_country_and_season(season)
+            
+            if leagues_data:
+                logger.info("🏆 Ligas agrupadas por país:")
+                if season:
+                    logger.info(f"📅 Temporada filtrada: {season}")
+                
+                current_country = None
+                country_count = 0
+                total_leagues = 0
+                
+                for league in leagues_data:
+                    if current_country != league['country']:
+                        if current_country is not None:
+                            logger.info(f"    Total: {country_count} ligas")
+                        current_country = league['country']
+                        country_count = 0
+                        logger.info(f"\n🌍 {league['country']} ({league['country_code']}):")
+                    
+                    country_count += 1
+                    total_leagues += 1
+                    logger.info(f"  • {league['league_name']} (ID: {league['external_id']}) - Temporada: {league['season']}")
+                
+                if current_country is not None:
+                    logger.info(f"    Total: {country_count} ligas")
+                
+                logger.info(f"\n📊 Total general: {total_leagues} ligas encontradas")
+            else:
+                logger.warning("❌ No se encontraron ligas")
+                
+        # Mostrar temporadas disponibles
+        seasons = query_service.get_available_seasons()
+        if seasons:
+            logger.info(f"\n📅 Temporadas disponibles: {', '.join(seasons)}")
+        
+    except Exception as e:
+        logger.error(f"❌ Error consultando ligas: {e}")
 
 if __name__ == '__main__':
     cli()
