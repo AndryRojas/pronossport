@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from src.database.connection import raw_db_manager
@@ -14,15 +14,58 @@ class RawQueryService:
     def __init__(self):
         self.db_manager = raw_db_manager
     
-    def get_leagues_by_country_and_season(self, season: Optional[str] = None) -> List[Dict[str, Any]]:
+    def _paginate_query(self, query, page: int = 1, per_page: int = 50) -> Tuple[List, Dict[str, Any]]:
         """
-        Obtiene todas las ligas agrupadas por país y liga, filtradas por temporada.
+        Aplica paginación a una consulta SQLAlchemy.
+        
+        Args:
+            query: Consulta SQLAlchemy
+            page: Página actual (empezando en 1)
+            per_page: Registros por página
+            
+        Returns:
+            Tuple: (resultados, información_paginación)
+        """
+        # Calcular offset
+        offset = (page - 1) * per_page
+        
+        # Obtener total de registros
+        total = query.count()
+        
+        # Aplicar paginación
+        results = query.offset(offset).limit(per_page).all()
+        
+        # Calcular información de paginación
+        total_pages = (total + per_page - 1) // per_page  # Redondear hacia arriba
+        has_prev = page > 1
+        has_next = page < total_pages
+        
+        pagination_info = {
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'total_pages': total_pages,
+            'has_prev': has_prev,
+            'has_next': has_next,
+            'prev_num': page - 1 if has_prev else None,
+            'next_num': page + 1 if has_next else None
+        }
+        
+        return results, pagination_info
+    
+    def get_leagues_by_country_and_season(self, season: Optional[str] = None, country: Optional[str] = None, 
+                                        page: int = 1, per_page: int = 50) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """
+        Obtiene todas las ligas agrupadas por país y liga, filtradas por temporada y país con paginación.
         
         Args:
             season (str, optional): Temporada a filtrar (ej: '2023', '2024')
+            country (str, optional): País a filtrar
+            page (int): Página actual (empezando en 1)
+            per_page (int): Registros por página
             
         Returns:
-            List[Dict]: Lista de diccionarios con información de ligas agrupadas
+            Tuple: (Lista de diccionarios con información de ligas, información de paginación)
         """
         try:
             with self.db_manager.get_session() as session:
@@ -49,9 +92,11 @@ class RawQueryService:
                     LeaguesRaw.flag_url
                 )
                 
-                # Aplicar filtro de temporada si se proporciona
+                # Aplicar filtros si se proporcionan
                 if season:
                     query = query.filter(LeaguesRaw.season == season)
+                if country:
+                    query = query.filter(LeaguesRaw.country == country)
                 
                 # Ordenar por país y luego por nombre de liga
                 query = query.order_by(
@@ -59,7 +104,8 @@ class RawQueryService:
                     LeaguesRaw.name.asc()
                 )
                 
-                results = query.all()
+                # Aplicar paginación
+                results, pagination_info = self._paginate_query(query, page, per_page)
                 
                 # Convertir a lista de diccionarios
                 leagues_data = []
@@ -77,8 +123,8 @@ class RawQueryService:
                         'total_records': result.total_records
                     })
                 
-                logger.info(f"Consulta de ligas completada. Total: {len(leagues_data)} ligas encontradas")
-                return leagues_data
+                logger.info(f"Consulta de ligas completada. Página {page}, {len(leagues_data)} ligas de {pagination_info['total']} totales")
+                return leagues_data, pagination_info
                 
         except Exception as e:
             logger.error(f"Error al consultar ligas por país y temporada: {e}")

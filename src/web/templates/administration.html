@@ -241,7 +241,7 @@
                                 </td>
                                 <td>
                                     {% if team.players_count > 0 %}
-                                    <a href="{{ url_for('players', team_id=team.external_id) }}" 
+                                    <a href="{{ url_for('players', team_id=team.external_id, season=current_season) }}" 
                                        class="btn btn-sm btn-outline-info">
                                         <i class="bi bi-person"></i> {{ team.players_count }}
                                     </a>
@@ -251,7 +251,7 @@
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{{ url_for('players', team_id=team.external_id) }}" 
+                                        <a href="{{ url_for('players', team_id=team.external_id, season=current_season) }}" 
                                            class="btn btn-outline-primary" title="Ver jugadores">
                                             <i class="bi bi-person"></i>
                                         </a>

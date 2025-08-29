@@ -1,0 +1,87 @@
+<!-- Componente de paginación reutilizable -->
+{% if pagination and pagination.total_pages > 1 %}
+<div class="row mt-4">
+    <div class="col-12">
+        <nav aria-label="Navegación de páginas">
+            <ul class="pagination justify-content-center">
+                <!-- Botón Anterior -->
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ build_pagination_url(pagination.prev_num) }}" aria-label="Anterior">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link" aria-label="Anterior">
+                        <span aria-hidden="true">&laquo;</span>
+                    </span>
+                </li>
+                {% endif %}
+                
+                <!-- Números de página -->
+                {% set start_page = [pagination.page - 2, 1] | max %}
+                {% set end_page = [pagination.page + 2, pagination.total_pages] | min %}
+                
+                <!-- Primera página si no está en el rango -->
+                {% if start_page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ build_pagination_url(1) }}">1</a>
+                </li>
+                {% if start_page > 2 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                {% endif %}
+                {% endif %}
+                
+                <!-- Páginas en el rango visible -->
+                {% for page_num in range(start_page, end_page + 1) %}
+                {% if page_num == pagination.page %}
+                <li class="page-item active" aria-current="page">
+                    <span class="page-link">{{ page_num }}</span>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ build_pagination_url(page_num) }}">{{ page_num }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+                
+                <!-- Última página si no está en el rango -->
+                {% if end_page < pagination.total_pages %}
+                {% if end_page < pagination.total_pages - 1 %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                {% endif %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ build_pagination_url(pagination.total_pages) }}">{{ pagination.total_pages }}</a>
+                </li>
+                {% endif %}
+                
+                <!-- Botón Siguiente -->
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ build_pagination_url(pagination.next_num) }}" aria-label="Siguiente">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link" aria-label="Siguiente">
+                        <span aria-hidden="true">&raquo;</span>
+                    </span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        
+        <!-- Información de paginación -->
+        <div class="text-center text-muted small">
+            Mostrando {{ ((pagination.page - 1) * pagination.per_page + 1) }} - {{ [pagination.page * pagination.per_page, pagination.total] | min }} 
+            de {{ pagination.total }} registros (Página {{ pagination.page }} de {{ pagination.total_pages }})
+        </div>
+    </div>
+</div>
+{% endif %}

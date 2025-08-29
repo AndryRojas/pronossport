@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, desc
 from src.database.connection import raw_db_manager
@@ -17,6 +17,45 @@ class WebQueryService:
     
     def __init__(self):
         self.db_manager = raw_db_manager
+    
+    def _paginate_query(self, query, page: int = 1, per_page: int = 50) -> Tuple[List, Dict[str, Any]]:
+        """
+        Aplica paginación a una consulta SQLAlchemy.
+        
+        Args:
+            query: Consulta SQLAlchemy
+            page: Página actual (empezando en 1)
+            per_page: Registros por página
+            
+        Returns:
+            Tuple: (resultados, información_paginación)
+        """
+        # Calcular offset
+        offset = (page - 1) * per_page
+        
+        # Obtener total de registros
+        total = query.count()
+        
+        # Aplicar paginación
+        results = query.offset(offset).limit(per_page).all()
+        
+        # Calcular información de paginación
+        total_pages = (total + per_page - 1) // per_page  # Redondear hacia arriba
+        has_prev = page > 1
+        has_next = page < total_pages
+        
+        pagination_info = {
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'total_pages': total_pages,
+            'has_prev': has_prev,
+            'has_next': has_next,
+            'prev_num': page - 1 if has_prev else None,
+            'next_num': page + 1 if has_next else None
+        }
+        
+        return results, pagination_info
     
     def get_dashboard_stats(self) -> Dict[str, Any]:
         """
@@ -182,17 +221,20 @@ class WebQueryService:
     
     def get_teams_summary(self, league_id: Optional[str] = None, 
                          season: Optional[str] = None,
-                         country: Optional[str] = None) -> List[Dict[str, Any]]:
+                         country: Optional[str] = None,
+                         page: int = 1, per_page: int = 50) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """
-        Obtiene resumen de equipos con filtros opcionales.
+        Obtiene resumen de equipos con filtros opcionales y paginación.
         
         Args:
             league_id: ID de liga para filtrar
             season: Temporada para filtrar
             country: País para filtrar
+            page: Página actual (empezando en 1)
+            per_page: Registros por página
             
         Returns:
-            List[Dict]: Lista de equipos con estadísticas
+            Tuple: (Lista de equipos con estadísticas, información de paginación)
         """
         try:
             with self.db_manager.get_session() as session:
@@ -232,7 +274,8 @@ class WebQueryService:
                 
                 query = query.order_by(TeamsRaw.country.asc(), TeamsRaw.name.asc())
                 
-                results = query.all()
+                # Aplicar paginación
+                results, pagination_info = self._paginate_query(query, page, per_page)
                 
                 teams_data = []
                 for team in results:
@@ -248,8 +291,8 @@ class WebQueryService:
                         'players_count': team.players_count or 0
                     })
                 
-                logger.info(f"Resumen de equipos obtenido: {len(teams_data)} equipos")
-                return teams_data
+                logger.info(f"Resumen de equipos obtenido: Página {page}, {len(teams_data)} equipos de {pagination_info['total']} totales")
+                return teams_data, pagination_info
                 
         except Exception as e:
             logger.error(f"Error obteniendo resumen de equipos: {e}")
@@ -257,17 +300,20 @@ class WebQueryService:
     
     def get_players_summary(self, team_id: Optional[str] = None,
                            league_id: Optional[str] = None,
-                           season: Optional[str] = None) -> List[Dict[str, Any]]:
+                           season: Optional[str] = None,
+                           page: int = 1, per_page: int = 50) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """
-        Obtiene resumen de jugadores con filtros opcionales.
+        Obtiene resumen de jugadores con filtros opcionales y paginación.
         
         Args:
             team_id: ID de equipo para filtrar
             league_id: ID de liga para filtrar
             season: Temporada para filtrar
+            page: Página actual (empezando en 1)
+            per_page: Registros por página
             
         Returns:
-            List[Dict]: Lista de jugadores con estadísticas
+            Tuple: (Lista de jugadores con estadísticas, información de paginación)
         """
         try:
             with self.db_manager.get_session() as session:
@@ -290,7 +336,7 @@ class WebQueryService:
                 ).outerjoin(
                     TeamsRaw,
                     PlayersRaw.external_team_id == TeamsRaw.external_id
-                )
+                ).distinct()
                 
                 # Aplicar filtros
                 if team_id:
@@ -300,6 +346,7 @@ class WebQueryService:
                     query = query.filter(PlayersRaw.external_league_id == league_id)
                 
                 if season:
+                    logger.info(f"Aplicando filtro de temporada para jugadores: {season}")
                     query = query.filter(PlayersRaw.season == season)
                 
                 query = query.order_by(
@@ -307,7 +354,8 @@ class WebQueryService:
                     PlayersRaw.name.asc()
                 )
                 
-                results = query.limit(1000).all()  # Limitar para performance
+                # Aplicar paginación
+                results, pagination_info = self._paginate_query(query, page, per_page)
                 
                 players_data = []
                 for player in results:
@@ -329,8 +377,8 @@ class WebQueryService:
                         'number': player.number
                     })
                 
-                logger.info(f"Resumen de jugadores obtenido: {len(players_data)} jugadores")
-                return players_data
+                logger.info(f"Resumen de jugadores obtenido: Página {page}, {len(players_data)} jugadores de {pagination_info['total']} totales")
+                return players_data, pagination_info
                 
         except Exception as e:
             logger.error(f"Error obteniendo resumen de jugadores: {e}")
@@ -339,18 +387,21 @@ class WebQueryService:
     def get_matches_summary(self, league_id: Optional[str] = None,
                            season: Optional[str] = None,
                            date_from: Optional[str] = None,
-                           date_to: Optional[str] = None) -> List[Dict[str, Any]]:
+                           date_to: Optional[str] = None,
+                           page: int = 1, per_page: int = 50) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """
-        Obtiene resumen de partidos con filtros opcionales.
+        Obtiene resumen de partidos con filtros opcionales y paginación.
         
         Args:
             league_id: ID de liga para filtrar
             season: Temporada para filtrar
             date_from: Fecha desde (YYYY-MM-DD)
             date_to: Fecha hasta (YYYY-MM-DD)
+            page: Página actual (empezando en 1)
+            per_page: Registros por página
             
         Returns:
-            List[Dict]: Lista de partidos con información básica
+            Tuple: (Lista de partidos con información básica, información de paginación)
         """
         try:
             with self.db_manager.get_session() as session:
@@ -384,7 +435,8 @@ class WebQueryService:
                 
                 query = query.order_by(FootballMatchesRaw.match_date.desc())
                 
-                results = query.limit(1000).all()  # Limitar para performance
+                # Aplicar paginación
+                results, pagination_info = self._paginate_query(query, page, per_page)
                 
                 matches_data = []
                 for match in results:
@@ -403,11 +455,34 @@ class WebQueryService:
                         'venue_city': match.venue_city
                     })
                 
-                logger.info(f"Resumen de partidos obtenido: {len(matches_data)} partidos")
-                return matches_data
+                logger.info(f"Resumen de partidos obtenido: Página {page}, {len(matches_data)} partidos de {pagination_info['total']} totales")
+                return matches_data, pagination_info
                 
         except Exception as e:
             logger.error(f"Error obteniendo resumen de partidos: {e}")
+            raise
+    
+    def get_available_seasons_for_players(self) -> List[str]:
+        """
+        Obtiene todas las temporadas disponibles en la tabla players_raw.
+        
+        Returns:
+            List[str]: Lista de temporadas disponibles para jugadores
+        """
+        try:
+            with self.db_manager.get_session() as session:
+                seasons = session.query(
+                    func.distinct(PlayersRaw.season)
+                ).filter(
+                    PlayersRaw.season.isnot(None)
+                ).order_by(
+                    PlayersRaw.season.desc()
+                ).all()
+                
+                return [season[0] for season in seasons if season[0]]
+                
+        except Exception as e:
+            logger.error(f"Error obteniendo temporadas de jugadores: {e}")
             raise
     
     def get_administration_leagues_data(self, filter_type: str = 'all', country: Optional[str] = None, 
@@ -426,11 +501,16 @@ class WebQueryService:
         """
         try:
             with self.db_manager.get_session() as session:
-                # Subconsulta para contar equipos por liga
-                teams_subquery = session.query(
+                # Subconsulta para contar equipos por liga (filtrado por temporada si se especifica)
+                teams_query = session.query(
                     TeamsRaw.extracted_for_league.label('league_id'),
                     func.count(func.distinct(TeamsRaw.external_id)).label('teams_count')
-                ).group_by(TeamsRaw.extracted_for_league).subquery()
+                )
+                
+                if season:
+                    teams_query = teams_query.filter(TeamsRaw.extracted_for_season == season)
+                    
+                teams_subquery = teams_query.group_by(TeamsRaw.extracted_for_league).subquery()
                 
                 # Subconsulta para contar partidos por liga
                 matches_subquery = session.query(
@@ -504,24 +584,30 @@ class WebQueryService:
             logger.error(f"Error obteniendo datos de administración de ligas: {e}")
             raise
     
-    def get_administration_teams_data(self, league_id: str, filter_type: str = 'all') -> List[Dict[str, Any]]:
+    def get_administration_teams_data(self, league_id: str, filter_type: str = 'all', season: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Obtiene datos de administración de equipos para una liga específica.
         
         Args:
             league_id: ID de la liga
             filter_type: 'all' para todos, 'no_data' para sin datos en jugadores
+            season: Temporada para filtrar equipos y jugadores
             
         Returns:
             List[Dict]: Lista con información de administración de equipos
         """
         try:
             with self.db_manager.get_session() as session:
-                # Subconsulta para contar jugadores por equipo
-                players_subquery = session.query(
+                # Subconsulta para contar jugadores por equipo (filtrado por temporada si se especifica)
+                players_query = session.query(
                     PlayersRaw.external_team_id.label('team_id'),
                     func.count(func.distinct(PlayersRaw.external_id)).label('players_count')
-                ).group_by(PlayersRaw.external_team_id).subquery()
+                )
+                
+                if season:
+                    players_query = players_query.filter(PlayersRaw.season == season)
+                    
+                players_subquery = players_query.group_by(PlayersRaw.external_team_id).subquery()
                 
                 # Consulta principal
                 query = session.query(
@@ -536,7 +622,13 @@ class WebQueryService:
                     TeamsRaw.external_id == players_subquery.c.team_id
                 ).filter(
                     TeamsRaw.extracted_for_league == league_id
-                ).group_by(
+                )
+                
+                # Aplicar filtro de temporada si se especifica
+                if season:
+                    query = query.filter(TeamsRaw.extracted_for_season == season)
+                
+                query = query.group_by(
                     TeamsRaw.external_id,
                     TeamsRaw.name,
                     TeamsRaw.country,

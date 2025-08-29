@@ -53,12 +53,14 @@ def create_app():
     def leagues():
         """Página de ligas"""
         try:
-            # Obtener parámetros de filtro
+            # Obtener parámetros de filtro y paginación
             season = request.args.get('season')
             country = request.args.get('country')
+            page = int(request.args.get('page', 1))
+            per_page = 50  # Registros por página
             
-            # Obtener datos de ligas
-            leagues_data = query_service.get_leagues_by_country_and_season(season)
+            # Obtener datos de ligas con paginación
+            leagues_data, pagination_info = query_service.get_leagues_by_country_and_season(season, country, page, per_page)
             countries = web_service.get_available_countries()
             seasons = query_service.get_available_seasons()
             
@@ -67,7 +69,8 @@ def create_app():
                                  countries=countries,
                                  seasons=seasons,
                                  current_season=season,
-                                 current_country=country)
+                                 current_country=country,
+                                 pagination=pagination_info)
         except Exception as e:
             logger.error(f"Error cargando ligas: {e}")
             return render_template('leagues.html', error=str(e))
@@ -76,13 +79,15 @@ def create_app():
     def teams():
         """Página de equipos"""
         try:
-            # Obtener parámetros de filtro
+            # Obtener parámetros de filtro y paginación
             league_id = request.args.get('league_id')
             season = request.args.get('season')
             country = request.args.get('country')
+            page = int(request.args.get('page', 1))
+            per_page = 50  # Registros por página
             
-            # Obtener datos de equipos
-            teams_data = web_service.get_teams_summary(league_id=league_id, season=season, country=country)
+            # Obtener datos de equipos con paginación
+            teams_data, pagination_info = web_service.get_teams_summary(league_id=league_id, season=season, country=country, page=page, per_page=per_page)
             leagues = web_service.get_leagues_for_filter()
             seasons = query_service.get_available_seasons()
             
@@ -92,7 +97,8 @@ def create_app():
                                  seasons=seasons,
                                  current_league=league_id,
                                  current_season=season,
-                                 current_country=country)
+                                 current_country=country,
+                                 pagination=pagination_info)
         except Exception as e:
             logger.error(f"Error cargando equipos: {e}")
             return render_template('teams.html', error=str(e))
@@ -101,16 +107,18 @@ def create_app():
     def players():
         """Página de jugadores"""
         try:
-            # Obtener parámetros de filtro
+            # Obtener parámetros de filtro y paginación
             team_id = request.args.get('team_id')
             league_id = request.args.get('league_id')
             season = request.args.get('season')
+            page = int(request.args.get('page', 1))
+            per_page = 50  # Registros por página
             
-            # Obtener datos de jugadores
-            players_data = web_service.get_players_summary(team_id=team_id, league_id=league_id, season=season)
+            # Obtener datos de jugadores con paginación
+            players_data, pagination_info = web_service.get_players_summary(team_id=team_id, league_id=league_id, season=season, page=page, per_page=per_page)
             teams = web_service.get_teams_for_filter()
             leagues = web_service.get_leagues_for_filter()
-            seasons = query_service.get_available_seasons()
+            seasons = web_service.get_available_seasons_for_players()
             
             return render_template('players.html',
                                  players=players_data,
@@ -119,7 +127,8 @@ def create_app():
                                  seasons=seasons,
                                  current_team=team_id,
                                  current_league=league_id,
-                                 current_season=season)
+                                 current_season=season,
+                                 pagination=pagination_info)
         except Exception as e:
             logger.error(f"Error cargando jugadores: {e}")
             return render_template('players.html', error=str(e))
@@ -128,18 +137,22 @@ def create_app():
     def matches():
         """Página de partidos"""
         try:
-            # Obtener parámetros de filtro
+            # Obtener parámetros de filtro y paginación
             league_id = request.args.get('league_id')
             season = request.args.get('season')
             date_from = request.args.get('date_from')
             date_to = request.args.get('date_to')
+            page = int(request.args.get('page', 1))
+            per_page = 50  # Registros por página
             
-            # Obtener datos de partidos
-            matches_data = web_service.get_matches_summary(
+            # Obtener datos de partidos con paginación
+            matches_data, pagination_info = web_service.get_matches_summary(
                 league_id=league_id, 
                 season=season,
                 date_from=date_from,
-                date_to=date_to
+                date_to=date_to,
+                page=page,
+                per_page=per_page
             )
             leagues = web_service.get_leagues_for_filter()
             seasons = query_service.get_available_seasons()
@@ -151,7 +164,8 @@ def create_app():
                                  current_league=league_id,
                                  current_season=season,
                                  current_date_from=date_from,
-                                 current_date_to=date_to)
+                                 current_date_to=date_to,
+                                 pagination=pagination_info)
         except Exception as e:
             logger.error(f"Error cargando partidos: {e}")
             return render_template('matches.html', error=str(e))
@@ -191,7 +205,7 @@ def create_app():
             teams_data = []
             league_details = None
             if selected_league:
-                teams_data = web_service.get_administration_teams_data(selected_league, teams_filter)
+                teams_data = web_service.get_administration_teams_data(selected_league, teams_filter, season_filter)
                 league_details = web_service.get_league_details_for_admin(selected_league)
             
             return render_template('administration.html',
@@ -300,7 +314,8 @@ def create_app():
         """API endpoint para datos de administración de equipos"""
         try:
             filter_type = request.args.get('filter', 'all')
-            data = web_service.get_administration_teams_data(league_id, filter_type)
+            season = request.args.get('season')
+            data = web_service.get_administration_teams_data(league_id, filter_type, season)
             return jsonify({'success': True, 'data': data})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -376,6 +391,15 @@ def create_app():
             return date_obj.strftime('%d/%m/%Y %H:%M')
         except:
             return date_string
+    
+    @app.template_global()
+    def build_pagination_url(page_num):
+        """Construye URL con paginación manteniendo los filtros actuales"""
+        from urllib.parse import urlencode
+        args = dict(request.args)
+        args['page'] = page_num
+        query_string = urlencode(args)
+        return f"{request.path}?{query_string}"
     
     return app
 

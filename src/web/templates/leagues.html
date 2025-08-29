@@ -23,20 +23,6 @@
             <div class="card-body">
                 <form method="GET" class="row g-3">
                     <div class="col-md-4">
-                        <label for="season" class="form-label">Temporada</label>
-                        <select class="form-select" id="season" name="season">
-                            <option value="">Todas las temporadas</option>
-                            {% if seasons %}
-                                {% for season in seasons %}
-                                <option value="{{ season }}" {% if current_season == season %}selected{% endif %}>
-                                    {{ season }}
-                                </option>
-                                {% endfor %}
-                            {% endif %}
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-4">
                         <label for="country" class="form-label">País</label>
                         <select class="form-select" id="country" name="country">
                             <option value="">Todos los países</option>
@@ -44,6 +30,20 @@
                                 {% for country in countries %}
                                 <option value="{{ country }}" {% if current_country == country %}selected{% endif %}>
                                     {{ country }}
+                                </option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <label for="season" class="form-label">Temporada</label>
+                        <select class="form-select" id="season" name="season">
+                            <option value="">Todas las temporadas</option>
+                            {% if seasons %}
+                                {% for season in seasons %}
+                                <option value="{{ season }}" {% if current_season == season %}selected{% endif %}>
+                                    {{ season }}
                                 </option>
                                 {% endfor %}
                             {% endif %}
@@ -71,7 +71,8 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">
-                    <i class="bi bi-list"></i> Ligas encontradas ({{ leagues|length }})
+                    <i class="bi bi-list"></i> Ligas encontradas 
+                    {% if pagination %}({{ pagination.total }} total){% else %}({{ leagues|length }}){% endif %}
                 </h5>
                 <div class="btn-group" role="group">
                     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleView('table')">
@@ -91,7 +92,6 @@
                                 <tr>
                                     <th>Liga</th>
                                     <th>País</th>
-                                    <th>Temporada</th>
                                     <th>Inicio</th>
                                     <th>Fin</th>
                                     <th>ID Externo</th>
@@ -120,9 +120,6 @@
                                             <small class="text-muted ms-1">({{ league.country_code }})</small>
                                             {% endif %}
                                         </div>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-primary">{{ league.season or 'N/A' }}</span>
                                     </td>
                                     <td>{{ league.season_start | format_date }}</td>
                                     <td>{{ league.season_end | format_date }}</td>
@@ -174,8 +171,7 @@
                                     </div>
                                     
                                     <div class="mb-2">
-                                        <span class="badge bg-primary">{{ league.season or 'N/A' }}</span>
-                                        <span class="badge bg-info ms-1">{{ league.total_records }} registros</span>
+                                        <span class="badge bg-info">{{ league.total_records }} registros</span>
                                     </div>
                                     
                                     <div class="small text-muted mb-3">
@@ -204,6 +200,9 @@
         </div>
     </div>
 </div>
+
+<!-- Paginación -->
+{% include 'pagination.html' %}
 
 {% else %}
 <div class="row">
